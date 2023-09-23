@@ -82,6 +82,46 @@ const getByStatus = async (status) => {
   return orders;
 };
 
+const getTotalSales = async () => {
+  const total = await Order.aggregate([
+    { $unwind: "$items" },
+
+    {
+      $lookup: {
+        from: "menuitems",
+        localField: "items.item",
+        foreignField: "_id",
+        as: "menuItemDetails"
+      }
+    },
+
+    { $unwind: "$menuItemDetails" },
+
+    {
+      $set: {
+        "items.total": {
+          $multiply: ["$items.quantity", "$menuItemDetails.price"]
+        }
+      }
+    },
+
+    {
+      $group: {
+        _id: "$_id",
+        totalSales: { $sum: "$items.total" }
+      }
+    },
+
+    {
+      $group: {
+        _id: null,
+        grandTotalSales: { $sum: "$totalSales" }
+      }
+    }
+  ]);
+  return total.pop().grandTotalSales;
+};
+
 module.exports = {
   getAll,
   getOne,
@@ -89,5 +129,6 @@ module.exports = {
   update,
   remove,
   getByStatus,
+  getTotalSales,
   Order
 };
